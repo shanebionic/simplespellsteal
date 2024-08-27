@@ -98,9 +98,10 @@ function SSFrameUpdate()
     if #stealableBuffs < 1 then
         SSFrame:Hide()
     else
-        local height = 10 * #stealableBuffs
+        local height = 20 + (14 * #stealableBuffs)  -- Title height + 14px per line
+        SSFrame:SetHeight(height)  -- Adjust frame height dynamically
         stealableBuffs = table.concat(stealableBuffs, "\n")
-        SSFrameList:SetHeight(height)
+        SSFrameList:SetHeight(14 * #stealableBuffs)  -- Adjust list height
         SSFrameList.DisplayText:SetText(stealableBuffs)
         SSFrameList:ClearAllPoints()
         SSFrameList:SetPoint(SSGrowup and "BOTTOMLEFT" or "TOPLEFT", 0, SSGrowup and 21 or -21)
@@ -143,7 +144,7 @@ function SSFrameCreate()
         edgeSize = 3, insets = {left = 2, right = 2, top = 2, bottom = 2}
     })
     SSFrame:SetBackdropColor(0, 0, 0, 1)
-    SSFrame:SetSize(220, 20)
+    SSFrame:SetSize(220, 40)  -- Adjust the base size to fit the title
     SSFrame:SetPoint("CENTER")
     SSFrame:EnableMouse(true)
     SSFrame:SetMovable(true)
@@ -173,7 +174,7 @@ function SSFrameCreate()
     SSFrametitle:SetText("SimpleSpellsteal")
 
     SSFrameList = CreateFrame("Frame", "SSFrameList", SSFrame, "BackdropTemplate")
-    SSFrameList:SetSize(220, 80)
+    SSFrameList:SetSize(220, 100)
     SSFrameList:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -183,5 +184,6 @@ function SSFrameCreate()
     SSFrameList:SetBackdropBorderColor(0, 0, 0)
 
     SSFrameList.DisplayText = SSFrameList:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    SSFrameList.DisplayText:SetPoint("LEFT")
+    SSFrameList.DisplayText:SetPoint("TOPLEFT", SSFrameList, "TOPLEFT", 5, -5)
+    SSFrameList.DisplayText:SetJustifyH("LEFT")
 end
