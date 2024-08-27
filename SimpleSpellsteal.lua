@@ -134,7 +134,7 @@ end
 function SSFrameCreate()
     if SSFrame then return end
 
-    SSFrame = CreateFrame("Frame", "SSFrame", UIParent)
+    SSFrame = CreateFrame("Frame", "SSFrame", UIParent, "BackdropTemplate")
     SSFrame:SetClampedToScreen(true)
     SSFrame:SetFrameStrata("HIGH")
     SSFrame:SetBackdrop({
