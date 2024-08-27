@@ -172,7 +172,7 @@ function SSFrameCreate()
     SSFrametitle:SetPoint("TOPLEFT", SSFrame, "TOPLEFT", 0, -4)
     SSFrametitle:SetText("SimpleSpellsteal")
 
-    SSFrameList = CreateFrame("Frame", "SSFrameList", SSFrame)
+    SSFrameList = CreateFrame("Frame", "SSFrameList", SSFrame, "BackdropTemplate")
     SSFrameList:SetSize(220, 80)
     SSFrameList:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -181,6 +181,7 @@ function SSFrameCreate()
     })
     SSFrameList:SetBackdropColor(1, 0, 0, 0.5)
     SSFrameList:SetBackdropBorderColor(0, 0, 0)
+
     SSFrameList.DisplayText = SSFrameList:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     SSFrameList.DisplayText:SetPoint("LEFT")
 end
