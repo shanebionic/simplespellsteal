@@ -2,188 +2,297 @@
 -- Spellsteal Monitor
 -- Creates a small frame with stealable spells from your current target.
 ---------------------------------------------------------------------------
-
 local version = C_AddOns.GetAddOnMetadata("SimpleSpellsteal", "Version")
 
 SSFrame = nil
 SSFrameList = nil
 
--- Slash Command Handler
+
 function SS_handleCmd(msg, editbox)
-    msg = string.lower(msg)
-    if msg == "test" then
-        if debug then
-            debug = false
-            DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Disabling test frame.")
-            SSFrameUpdate()
-        else
-            debug = true
-            SSFrameUpdate()
-            DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Showing test frame.")
-        end
-    elseif msg == "announce" then
-        SSAnnounce = not SSAnnounce
-        DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Announcing to raid/party " .. (SSAnnounce and "enabled." or "disabled."))
-        SSFrametitle:SetText("SimpleSpellsteal" .. (SSAnnounce and " (Announce mode)" or ""))
-    elseif msg == "lock" then
-        SSFrame.Locked = not SSFrame.Locked
-        DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Frame is now " .. (SSFrame.Locked and "locked." or "unlocked."))
-    elseif msg == "growup" then
-        SSGrowup = not SSGrowup
-        DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Frame will now grow " .. (SSGrowup and "up (reverse)." or "down (normal)."))
-        SSFrameList:ClearAllPoints()
-        SSFrameList:SetPoint(SSGrowup and "BOTTOMLEFT" or "TOPLEFT", 0, SSGrowup and 21 or -21)
-        SSFrameUpdate()
-    else
-        DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Recognized commands:\n\"test\" - Shows SimpleSpellsteal frame with fake buffs.\n\"announce\" - Toggles announcing stolen spells to raid/party.\n\"lock\" - Toggles frame locking.\n\"growup\" - Toggles frame growth direction.")
-    end
+	if (msg == "test" ) then
+		if (debug == true) then
+			debug = false
+			DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Disabling test frame.")
+			SSFrameUpdate()
+		else
+			debug = true
+			SSFrameUpdate()
+			DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Showing test frame.")
+		end
+	elseif (msg == "announce") then
+		if (SSAnnounce == true) then
+			DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Announcing to raid/party disabled.")
+			SSAnnounce = false
+			if (not SSFrametitle) then
+				SSFrameCreate()
+				SSFrameUpdate()
+			end
+			SSFrametitle:SetText("SimpleSpellsteal")
+		else
+			DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Announcing to raid/party enabled.")
+			SSAnnounce  = true
+			if (not SSFrametitle) then
+				SSFrameCreate()
+				SSFrameUpdate()
+			end
+			SSFrametitle:SetText("SimpleSpellsteal (Announce mode)")
+		end
+	elseif (msg == "lock" ) then
+		if (SSFrame.Locked == true) then
+			SSFrame.Locked = false
+			DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Frame is now unlocked. Frame with auto lock if you reload UI or restart game.")
+		else
+			SSFrame.Locked = true
+			DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Frame is now locked.")
+		end
+	elseif (msg == "growup") then
+		if (SSGrowup == true) then
+			SSGrowup = false
+			DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: Frame will now grow down (normal).")
+			SSFrameList:ClearAllPoints()
+			SSFrameList:SetPoint("TOPLEFT",0,-21)
+			SSFrameUpdate()
+				
+		else
+			SSGrowup = true
+			DEFAULT_CHAT_FRAME:AddMessage("SpellSteaker: Frame will now grow up (reverse).")
+			SSFrameList:ClearAllPoints()
+			SSFrameList:SetPoint("BOTTOMLEFT",0,21)
+			SSFrameUpdate()
+		end
+	else
+		DEFAULT_CHAT_FRAME:AddMessage("SimpleSpellsteal: The following commands are recognized. \n\r\"test\" -- Shows SimpleSpellsteal frame with fake buffs for positioning.\n\r\"announce\" -- Toggles on/off announcing spells stolen to raid/party. Detects which you are in and announces accordingly.\r\n\"lock\" --Toggles on/off the frame locking. (Defaults to locked)\r\n\"growup\" -- Toggles the frame growing down (default) or up (reversed)")
+		
+	end
 end
 
--- OnLoad Event Handler
+
 function SS_OnLoad(self)
-    local _, playerClass = UnitClass("player")
-    if playerClass ~= "MAGE" then return end  -- Ensure the player is a mage
-
-    self:RegisterEvent("PLAYER_TARGET_CHANGED")
-    self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    self:RegisterEvent("UNIT_AURA")
-    self:RegisterEvent("PLAYER_DEAD")
-    self:RegisterEvent("UNIT_TARGET")
-
-    SLASH_SimpleSpellsteal1 = "/ssteal"
-    SLASH_SimpleSpellsteal2 = "/ss"
-    SlashCmdList["SimpleSpellsteal"] = SS_handleCmd
-
-    SSAnnounce = SSAnnounce or false
-    SSGrowup = SSGrowup or false
-
-    SSFrameCreate()
-    SSFrameUpdate()
+	local _, playerClass = UnitClass("player")
+	
+	self:RegisterEvent("PLAYER_TARGET_CHANGED")
+	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	self:RegisterEvent("UNIT_AURA")	
+	self:RegisterEvent("PLAYER_DEAD")
+	self:RegisterEvent("UNIT_TARGET")
+	SLASH_SimpleSpellsteal1 = "/ssteal"
+	SLASH_SimpleSpellsteal2 = "/ss"
+	SlashCmdList["SimpleSpellsteal"] = SS_handleCmd
+	
+	if (SSAnnounce == nil) then
+		SSAnnounce = false
+	end
+	
+	if ( SSGrowup == nil) then
+		SSGrowup = false
+	end
+	
+	SSFrameCreate()
+	SSFrameUpdate()
+	
 end
-
--- Round Function
 function round(num, idp)
-    local mult = 10^(idp or 0)
-    return math.floor(num * mult + 0.5) / mult
+  local mult = 10^(idp or 0)
+  return math.floor(num * mult + 0.5) / mult
 end
 
--- Frame Update Function
+
 function SSFrameUpdate()
-    local i = 1
-    local stealableBuffs = {}
-    local buffName, _, _, _, _, expireTime, _, isStealable = C_UnitAuras.GetBuffDataByIndex("target", i)
+	local  i = 1
+	local stealableBuffs = { }
+	local buffName, _, _, _, _, expireTime, _, isStealable = C_UnitAuras.GetAuraDataByIndex("target", i, "HELPFUL")
+	
+	if not SSFrame then
+		SSFrameCreate()
+	end
 
-    if not SSFrame then SSFrameCreate() end
+	while buffName do
+		if (isStealable == true) then
+			if (expireTime) then
+				expireTime = round(expireTime - GetTime(),1)
+				if (expireTime > 60) then
+					expireTime = ""
+				else
+					expireTime = expireTime .. "s"
+				end
+			end
+			stealableBuffs[#stealableBuffs +1] = buffName .. " " .. expireTime
+		end
+		i = i+1
+		buffName, _, _, _, _, expireTime, _, isStealable = C_UnitAuras.GetAuraDataByIndex("target", i, "HELPFUL")
+	end
+	if (debug == true) then
+		stealableBuffs[1] = "Steal me!"
+		stealableBuffs[2] = "Nerf Ele Shaman!"
+		stealableBuffs[3] = "Combo points are for Rogues"
+		stealableBuffs[4] = "Paladins are dead"
 
-    while buffName do
-        if isStealable then
-            if expireTime then
-                expireTime = round(expireTime - GetTime(), 1)
-                if expireTime > 60 then
-                    expireTime = ""
-                else
-                    expireTime = expireTime .. "s"
-                end
-            end
-            table.insert(stealableBuffs, buffName .. " " .. expireTime)
-        end
-        i = i + 1
-        buffName, _, _, _, _, expireTime, _, isStealable = C_UnitAuras.GetBuffDataByIndex("target", i)
-    end
+	end
+		
+	if (#stealableBuffs<1) then
+		SSFrame:Hide()
+	else
+		
+		local height = 10* #stealableBuffs
+		stealableBuffs = table.concat(stealableBuffs, "\n")
+		SSFrameList:SetHeight(height)
+		SSFrameList.DisplayText:SetText(stealableBuffs)
+		if ( SSGrowup == true) then
+			SSFrameList:ClearAllPoints()
+			SSFrameList:SetPoint("BOTTOMLEFT",0,21)
+		else
+			SSFrameList:ClearAllPoints()
+			SSFrameList:SetPoint("TOPLEFT",0,-21)
+		end
 
-    if debug then
-        stealableBuffs = {"Steal me!", "Nerf Ele Shaman!", "Combo points are for Rogues", "Paladins are dead"}
-    end
-
-    if #stealableBuffs < 1 then
-        SSFrame:Hide()
-    else
-        local height = 20 + (1 * #stealableBuffs)  -- Title height + 14px per line
-        SSFrame:SetHeight(height)  -- Adjust frame height dynamically
-        stealableBuffs = table.concat(stealableBuffs, "\n")
-        SSFrameList:SetHeight(14 * #stealableBuffs)  -- Adjust list height
-        SSFrameList.DisplayText:SetText(stealableBuffs)
-        SSFrameList:ClearAllPoints()
-        SSFrameList:SetPoint(SSGrowup and "BOTTOMLEFT" or "TOPLEFT", 0, SSGrowup and 21 or -21)
-        SSFrame:Show()
-    end
+		SSFrame:Show()
+	end
 end
 
--- Event Handler Function
 function SS_handleEvent(self, event, ...)
-    if event == "PLAYER_TARGET_CHANGED" or (event == "UNIT_TARGET" and select(1, ...) == "player") or event == "PLAYER_DEAD" then
-        SSFrameUpdate()
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local _, eventType, _, sourceGUID, _, _, _, destName, _, _, spellID = CombatLogGetCurrentEventInfo()
-
-        if eventType == "SPELL_STOLEN" and sourceGUID == UnitGUID("player") then
-            local spellLink = GetSpellLink(spellID)
-            local msg = "You have stolen: " .. spellLink .. " from " .. destName
-            if SSAnnounce then
-                local channel = IsInRaid() and (IsInRaid(LE_PARTY_CATEGORY_INSTANCE) and "INSTANCE_CHAT" or "RAID") or (GetNumSubgroupMembers() > 0 and "PARTY")
-                if channel then SendChatMessage(msg, channel) end
-            end
-            DEFAULT_CHAT_FRAME:AddMessage("|cffFFFFFF" .. msg)
-            SSFrameUpdate()
-        end
-    elseif event == "UNIT_AURA" and select(1, ...) == "target" then
-        SSFrameUpdate()
-    end
+	local isParty = ((GetNumSubgroupMembers() >0) and not IsInRaid())
+	local isLFR = IsInRaid(LE_PARTY_CATEGORY_INSTANCE)
+	
+	local channel = nil
+	
+	if (SSAnnounce == true) then
+		if (IsInRaid(LE_PARTY_CATEGORY_HOME)) then
+			channel = "RAID"
+		elseif (IsInRaid(LE_PARTY_CATEGORY_INSTANCE)) then
+			channel = "INSTANCE_CHAT"
+		elseif (isParty) then
+			channel = "PARTY"
+		end
+	else
+		channel = nil
+	end
+	
+	--SPELL_STOLEN,0x05000000045E6EDB,"Alfabravo",0x511,0x0,0x06800000006AC840,"Pison-Drenden",0x10548,0x0,21562,"Power Word: Fortitude",0x2,0x06800000006AC840,63325,48,9789,0,186685,30449,"Spellsteal",64,BUFF
+	
+	if (event == "PLAYER_TARGET_CHANGED") then
+		SSFrameUpdate()
+	elseif(event == "UNIT_TARGET" and select(1,...) == "player") then
+		SSFrameUpdate()
+	elseif (event == "PLAYER_DEAD") then
+		SSFrameUpdate()
+	elseif (event == "COMBAT_LOG_EVENT_UNFILTERED")	 then
+		local cEvent, _, sourceGUID, sourceName, _,_, destGUID, destName = select(2, ...)
+		local spellID = select(15,...)
+		
+		if (cEvent == "SPELL_STOLEN" and sourceGUID == UnitGUID("player")) then
+			
+			local msg = "Stole:"..C_Spell.GetSpellLink(spellID)
+			local name, _, icon, _,_, _, _, _, _ = C_Spell.GetSpellInfo(spellID)
+			
+			if(GetCVar("enableCombatText") == '1') then
+				CombatText_AddMessage(msg, CombatText_StandardScroll, 0.10, 0, 1, "sticky", nil);
+			end
+			if MikSBT then
+				MikSBT.DisplayMessage(msg,MikSBT.DISPLAYTYPE_NOTIFICATION, true, 255, 255, 255, nil, nil, nil, icon)
+			end
+			if SCT then
+				local rgbcolor = { r=1, g=1, b=1 };
+				SCT:DisplayMessage(msg, rgbcolor);
+			end
+  			if Parrot then
+				Parrot:ShowMessage(msg, "Notification", true, 1, 1, 1, nil, nil, "NORMAL", icon);
+			end
+			
+			if (channel ~= nil) then
+				local msg = "I have stolen "..C_Spell.GetSpellLink(spellID).." from "..destName
+				SendChatMessage(msg, channel)
+			else
+				DEFAULT_CHAT_FRAME:AddMessage("|cffFFFFFFYou have stolen:"..C_Spell.GetSpellLink(spellID).." from "..destName)
+			end
+				
+			SSFrameUpdate()
+	    	end
+	elseif (event == "UNIT_AURA" and select(1,...) == "target") then
+		
+		SSFrameUpdate()
+	end
 end
 
--- Frame Creation Function
+
 function SSFrameCreate()
-    if SSFrame then return end
+   
+	local backdrop = {bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 3, left=2, right=2, top=2, bottom=2}
+	
+	if not SSFrame then
+		SSFrame = CreateFrame("Frame", "SSFrame", UIParent, "BackdropTemplate")
+		SSFrame:SetClampedToScreen(true)
+		SSFrame:SetFrameStrata("HIGH")
+		SSFrame:SetBackdrop(backdrop)
+		SSFrame:SetBackdropColor(0,0,0,1)
+		SSFrame:SetWidth(220)
+		SSFrame:SetHeight(20) 
+		SSFrame:SetPoint("CENTER",0,0)
+		SSFrame:EnableMouse(true)
+		SSFrame:SetMovable(true)
+		SSFrame:RegisterForDrag("RightButton")
+		SSFrame:SetUserPlaced(true)
+		
+		SSFrame.Locked = true
+			
+		SSFrame:SetScript('OnMouseDown', function(self) 
+			if (self.Locked == false) then
+				self:StartMoving()
+				self.IsMoving = true
+			end
+		end)
+		SSFrame:SetScript('OnMouseUp', function(self)
+			if (self.Locked == false) then
+				self:StopMovingOrSizing()
+				self.IsMoving = false
+			end
+		end)
+		SSFrame:SetScript("OnShow", function(self)
+			SSFrameList:Show()
+			if (SSAnnounce == true) then 
+				SSFrametitle:SetText("SimpleSpellsteal (announce mode)")
+			else
+				SSFrametitle:SetText("SimpleSpellsteal")
+			end
+		end)
+		
+		SSFrame:SetScript("OnHide", function(self)
+			if ( self.isMoving ) then
+				self:StopMovingOrSizing();
+				self.isMoving = false;
+			end
+		end)
+		
+		SSFrametitle = SSFrame:CreateFontString("SSFrametitletext", "OVERLAY")
+		SSFrametitle:SetFont("Fonts\\FRIZQT__.TTF", 12)
+		SSFrametitle:SetJustifyH("LEFT")
+		
 
-    SSFrame = CreateFrame("Frame", "SSFrame", UIParent, "BackdropTemplate")
-    SSFrame:SetClampedToScreen(true)
-    SSFrame:SetFrameStrata("HIGH")
-    SSFrame:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 3, insets = {left = 2, right = 2, top = 2, bottom = 2}
-    })
-    SSFrame:SetBackdropColor(0, 0, 0, 1)
-    SSFrame:SetSize(220, 40)  -- Adjust the base size to fit the title
-    SSFrame:SetPoint("CENTER")
-    SSFrame:EnableMouse(true)
-    SSFrame:SetMovable(true)
-    SSFrame:RegisterForDrag("RightButton")
-    SSFrame:SetUserPlaced(true)
-    SSFrame.Locked = true
-
-    SSFrame:SetScript("OnMouseDown", function(self)
-        if not self.Locked then self:StartMoving() end
-    end)
-    SSFrame:SetScript("OnMouseUp", function(self)
-        if not self.Locked then self:StopMovingOrSizing() end
-    end)
-    SSFrame:SetScript("OnShow", function()
-        SSFrameList:Show()
-        SSFrametitle:SetText("SimpleSpellsteal" .. (SSAnnounce and " (Announce mode)" or ""))
-    end)
-    SSFrame:SetScript("OnHide", function(self)
-        if self.isMoving then
-            self:StopMovingOrSizing()
-            self.isMoving = false
-        end
-    end)
-
-    SSFrametitle = SSFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    SSFrametitle:SetPoint("TOPLEFT", SSFrame, "TOPLEFT", 0, -4)
-    SSFrametitle:SetText("SimpleSpellsteal")
-
-    SSFrameList = CreateFrame("Frame", "SSFrameList", SSFrame, "BackdropTemplate")
-    SSFrameList:SetSize(220, 100)
-    SSFrameList:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 3, insets = {left = 2, right = 2, top = 2, bottom = 2}
-    })
-    SSFrameList:SetBackdropColor(1, 0, 0, 0.5)
-    SSFrameList:SetBackdropBorderColor(0, 0, 0)
-
-    SSFrameList.DisplayText = SSFrameList:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    SSFrameList.DisplayText:SetPoint("TOPLEFT", SSFrameList, "TOPLEFT", 5, -5)
-    SSFrameList.DisplayText:SetJustifyH("LEFT")
+		if (SSAnnounce == true) then
+			SSFrametitle:SetText("SimpleSpellsteal (announce mode)")
+		else
+			SSFrametitle:SetText("SimpleSpellsteal")
+		end
+		SSFrametitle:SetPoint("TOPLEFT", 0, -4)
+				
+		
+		SSFrameList = CreateFrame("Frame", "SSFrameList", SSFrame, "BackdropTemplate")
+		SSFrameList:SetFrameStrata("HIGH")
+		
+		if ( SSGrowup == true) then
+			SSFrameList:SetPoint("BOTTOMLEFT",0,21)
+		else
+			SSFrameList:SetPoint("TOPLEFT",0,-21)
+		end
+		
+		SSFrameList:SetWidth(220)
+		SSFrameList:SetHeight(80)
+		SSFrameList:SetBackdrop(backdrop)
+		SSFrameList:SetBackdropColor(1,0,0,.5)
+		SSFrameList:SetBackdropBorderColor(0,0,0)
+		SSFrameList.elapsed = 0
+		SSFrameList.DisplayText = SSFrameList:CreateFontString("SSFrameListText", "OVERLAY")
+		SSFrameList.DisplayText:SetFont("Fonts\\FRIZQT__.TTF", 10)
+		SSFrameList.DisplayText:SetJustifyH("LEFT")
+		SSFrameList.DisplayText:SetPoint("LEFT")
+	end
 end
