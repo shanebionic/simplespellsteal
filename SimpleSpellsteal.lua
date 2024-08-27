@@ -2,7 +2,7 @@
 -- Spellsteal Monitor
 -- Creates a small frame with stealable spells from your current target.
 ---------------------------------------------------------------------------
-local version = GetAddOnMetadata("SimpleSpellsteal", "Version")
+local version = C_AddOns.GetAddOnMetadata("SimpleSpellsteal", "Version")
 
 SSFrame = nil
 SSFrameList = nil
@@ -100,7 +100,7 @@ end
 function SSFrameUpdate()
 	local  i = 1
 	local stealableBuffs = { }
-	local buffName, _, _, _, _, expireTime, _, isStealable = UnitAura("target", i, "HELPFUL")
+	local buffName, _, _, _, _, expireTime, _, isStealable = C_UnitAuras.GetAuraDataByIndex("target", i, "HELPFUL")
 	
 	if not SSFrame then
 		SSFrameCreate()
@@ -119,7 +119,7 @@ function SSFrameUpdate()
 			stealableBuffs[#stealableBuffs +1] = buffName .. " " .. expireTime
 		end
 		i = i+1
-		buffName, _, _, _, _, expireTime, _, isStealable = UnitAura("target", i, "HELPFUL")
+		buffName, _, _, _, _, expireTime, _, isStealable = C_UnitAuras.GetAuraDataByIndex("target", i, "HELPFUL")
 	end
 	if (debug == true) then
 		stealableBuffs[1] = "Steal me!"
@@ -182,7 +182,7 @@ function SS_handleEvent(self, event, ...)
 		if (cEvent == "SPELL_STOLEN" and sourceGUID == UnitGUID("player")) then
 			
 			local msg = "Stole:"..GetSpellLink(spellID)
-			local name, _, icon, _,_, _, _, _, _ = GetSpellInfo(spellID)
+			local name, _, icon, _,_, _, _, _, _ = C_Spell.GetSpellInfo(spellID)
 			
 			if(GetCVar("enableCombatText") == '1') then
 				CombatText_AddMessage(msg, CombatText_StandardScroll, 0.10, 0, 1, "sticky", nil);
