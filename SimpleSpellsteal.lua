@@ -98,7 +98,7 @@ function SSFrameUpdate()
     if #stealableBuffs < 1 then
         SSFrame:Hide()
     else
-        local height = 20 + (14 * #stealableBuffs)  -- Title height + 14px per line
+        local height = 20 + (1 * #stealableBuffs)  -- Title height + 14px per line
         SSFrame:SetHeight(height)  -- Adjust frame height dynamically
         stealableBuffs = table.concat(stealableBuffs, "\n")
         SSFrameList:SetHeight(14 * #stealableBuffs)  -- Adjust list height
