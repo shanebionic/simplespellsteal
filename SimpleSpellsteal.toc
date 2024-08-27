@@ -1,0 +1,10 @@
+## Interface: 80000
+## Title: SimpleSpellsteal
+## Author: denalb
+## Version: 1.0
+## SavedVariables: SSAnnounce, SSGrowup
+## Notes: Creates a small movable frame listing stealable buffs from your target.
+
+
+SimpleSpellsteal.xml
+
